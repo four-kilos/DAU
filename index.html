@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAU Notes Logger</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-size: 18px;
+            padding: 20px;
+            text-align: center;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            width: 60%;
+            max-width: 100%;
+            min-width: 300px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #bbbbbb;
+        }
+        input {
+            font-size: 1.5vw;
+            padding: 1vw;
+            width: 100%;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+        button {
+            font-size: 1.5vw;
+            padding: 1vw;
+            margin-top: 10px;
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+        table {
+            width: 100%;
+            font-size: 18px;
+            margin-top: 20px;
+            border-collapse: collapse;
+            background-color: #222;
+            color: #fff;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #555;
+        }
+        .export-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>DAU Notes Logger</h1>
+    <button onclick="toggleTheme()">Toggle Dark/Light Mode</button>
+
+    <div class="input-container">
+        <div class="input-group">
+            <label for="noteInput">Notes</label>
+            <input type="text" id="noteInput" placeholder="Enter notes" onkeypress="handleKeyPress(event)">
+        </div>
+        <button onclick="logTime()">Log Time</button>
+    </div>
+    
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Notes</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="logTable">
+        </tbody>
+    </table>
+
+    <div class="export-container">
+        <button onclick="exportExcel()">Export to Excel</button>
+        <button onclick="importNotes()">Import JSON</button>
+        <button onclick="exportJSON()">Export JSON</button>
+        <button onclick="clearLogs()">Clear All Entries</button>
+    </div>
+
+    <script>
+        let logs = JSON.parse(localStorage.getItem("logs")) || [];
+
+        function renderLogs() {
+            let table = document.getElementById("logTable");
+            table.innerHTML = "";
+            logs.forEach((log, index) => {
+                let row = table.insertRow();
+                row.insertCell(0).textContent = log.date;
+                row.insertCell(1).textContent = log.time;
+
+                let noteCell = row.insertCell(2);
+                noteCell.innerHTML = `<input type="text" value="${log.note}" onchange="updateNote(${index}, this.value)">`;
+
+                let actions = row.insertCell(3);
+                actions.innerHTML = `
+                    <button onclick="deleteEntry(${index})">Delete</button>
+                `;
+            });
+        }
+
+        function logTime() {
+            let now = new Date();
+            let date = now.toLocaleDateString();
+            let time = now.toLocaleTimeString();
+            let note = document.getElementById("noteInput").value.trim(); // Allow empty notes
+            logs.push({ date, time, note });
+            localStorage.setItem("logs", JSON.stringify(logs));
+            renderLogs();
+            document.getElementById("noteInput").value = "";
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                logTime();
+            }
+        }
+
+        function deleteEntry(index) {
+            if (confirm("Are you sure you want to delete this entry?")) {
+                logs.splice(index, 1);
+                localStorage.setItem("logs", JSON.stringify(logs));
+                renderLogs();
+            }
+        }
+
+        function updateNote(index, newNote) {
+            logs[index].note = newNote;
+            localStorage.setItem("logs", JSON.stringify(logs));
+            renderLogs();
+        }
+
+        function clearLogs() {
+            if (confirm("Are you sure you want to delete all entries?")) {
+                logs = [];
+                localStorage.removeItem("logs");
+                renderLogs();
+            }
+        }
+
+        function exportExcel() {
+            let wb = XLSX.utils.book_new();
+            let ws_data = [["Date", "Time", "Notes"], ...logs.map(log => [log.date, log.time, log.note])];
+            let ws = XLSX.utils.aoa_to_sheet(ws_data);
+            ws["!cols"] = [{ wch: 15 }, { wch: 15 }, { wch: 50 }];
+            XLSX.utils.book_append_sheet(wb, ws, "Logs");
+            XLSX.writeFile(wb, "DAU_Notes_Log.xlsx");
+        }
+
+        function exportJSON() {
+            let blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "DAU_Notes_Log.json";
+            a.click();
+        }
+
+        function importNotes() {
+            let input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            input.addEventListener("change", function () {
+                let file = input.files[0];
+                let reader = new FileReader();
+                reader.onload = function (event) {
+                    logs = JSON.parse(event.target.result);
+                    localStorage.setItem("logs", JSON.stringify(logs));
+                    renderLogs();
+                };
+                reader.readAsText(file);
+            });
+            input.click();
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle("light-mode");
+            localStorage.setItem("theme", document.body.classList.contains("light-mode") ? "light" : "dark");
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (localStorage.getItem("theme") === "light") {
+                document.body.classList.add("light-mode");
+            }
+            renderLogs();
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+            .then(() => console.log("Service Worker Registered"))
+            .catch(error => console.error("Service Worker Registration Failed:", error));
+        }
+    </script>
+</body>
+</html>
