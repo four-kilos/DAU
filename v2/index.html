@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<!-- saved from url=(0041)https://four-kilos.github.io/NotesLogger/ -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes Logger</title>
+    <link rel="manifest" href="https://four-kilos.github.io/NotesLogger/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('Service Worker Registered'))
+                .catch(err => console.error('Service Worker Registration Failed:', err));
+            });
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            transition: background 0.3s, color 0.3s;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            text-align: center;
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        .input-container {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 800px;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: #333;
+            color: #f0f0f0;
+        }
+        th, td {
+            border: 1px solid #555;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background: #444;
+        }
+        th:nth-child(1) { width: 20%; }
+        th:nth-child(2) { width: 20%; }
+        th:nth-child(3) { width: 50%; }
+        th:nth-child(4) { width: 10%; }
+        button {
+            background: #ff5722;
+            color: white;
+            border: none;
+            padding: 12px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #e64a19;
+        }
+        textarea, input[type="text"] {
+            width: 95%;
+            padding: 10px;
+            margin-top: 5px;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            border-radius: 5px;
+            resize: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Notes Logger</h2>
+        <table id="notesTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody><tr><td>2025-02-26</td><td>21:51:08</td><td><input type="text"></td><td><button>Delete</button></td></tr><tr><td>2025-02-26</td><td>21:58:13</td><td><input type="text"></td><td><button>Delete</button></td></tr></tbody>
+        </table>
+    </div>
+    <div class="input-container">
+        <textarea id="noteInput" placeholder="Enter your note..."></textarea>
+        <div class="button-group">
+            <button onclick="addNote()">Add Note</button>
+            <button onclick="exportToCSV()">Export to CSV</button>
+            <button onclick="confirmDeleteAll()">Delete All</button>
+        </div>
+    </div>
+    <script>
+        function addNote() {
+            const text = document.getElementById("noteInput").value.trim();
+            const now = new Date();
+            const date = now.toISOString().split("T")[0];
+            const time = now.toTimeString().split(" ")[0];
+            addRow(date, time, text);
+            saveNotes();
+            document.getElementById("noteInput").value = "";
+        }
+
+        function addRow(date, time, text) {
+            const tbody = document.querySelector("#notesTable tbody");
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = date;
+            row.insertCell(1).textContent = time;
+            const textCell = row.insertCell(2);
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = text;
+            input.oninput = saveNotes;
+            textCell.appendChild(input);
+            const actionsCell = row.insertCell(3);
+            const delButton = document.createElement("button");
+            delButton.textContent = "Delete";
+            delButton.onclick = function () { confirmDelete(row); };
+            actionsCell.appendChild(delButton);
+        }
+
+        function saveNotes() {
+            const rows = document.querySelectorAll("#notesTable tbody tr");
+            const notes = Array.from(rows).map(row => ({
+                date: row.cells[0].textContent,
+                time: row.cells[1].textContent,
+                text: row.cells[2].querySelector("input").value
+            }));
+            localStorage.setItem("notes", JSON.stringify(notes));
+        }
+
+        function exportToCSV() {
+            const date = new Date().toISOString().split("T")[0];
+            const filename = `DAU_Notes_${date}.csv`;
+            const notes = JSON.parse(localStorage.getItem("notes")) || [];
+            let csvContent = "Date,Time,Note\n";
+            notes.forEach(note => {
+                const sanitizedNote = note.text.replace(/,/g, " ");
+                csvContent += `${note.date},${note.time},${sanitizedNote}\n`;
+            });
+            const blob = new Blob([csvContent], { type: "text/csv" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function confirmDelete(row) {
+            if (confirm("Are you sure you want to delete this note?")) {
+                row.remove();
+                saveNotes();
+            }
+        }
+
+        function confirmDeleteAll() {
+            if (confirm("Are you sure you want to delete all notes?")) {
+                localStorage.removeItem("notes");
+                loadNotes();
+            }
+        }
+        
+        function loadNotes() {
+            const notes = JSON.parse(localStorage.getItem("notes")) || [];
+            const tbody = document.querySelector("#notesTable tbody");
+            tbody.innerHTML = "";
+            notes.forEach(note => addRow(note.date, note.time, note.text));
+        }
+        
+        window.onload = loadNotes;
+    </script>
+
+
+</body></html>
