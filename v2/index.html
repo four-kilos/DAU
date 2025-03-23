@@ -94,6 +94,18 @@
             resize: none;
         }
     </style>
+        <script>
+        function checkPassword() {
+            var password = prompt("Please enter the password:");
+            if (password === "password") {
+                document.getElementById("protectedContent").style.display = "block";
+            } else {
+                alert("Incorrect password!");
+                window.location.reload();
+            }
+        }
+        window.onload = checkPassword;
+    </script>
 </head>
 <body>
     <div class="container">
