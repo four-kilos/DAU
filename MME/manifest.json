@@ -1,0 +1,20 @@
+{
+    "name": "MME NotesApp",
+    "short_name": "NotesApp",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#1e1e1e",
+    "theme_color": "#bf311b",
+    "icons": [
+        {
+            "src": "logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MME NotesApp</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(() => console.log('Service Worker Registered'))
+                    .catch(err => console.error('Service Worker Registration Failed:', err));
+            });
+        }
+    </script>
+    <script>
+        function checkPassword() {
+            var password = prompt("Please enter the password:");
+            if (password === "password") {
+                document.getElementById("protectedContent").style.display = "block";
+            } else {
+                alert("Incorrect password!");
+                window.location.reload();
+            }
+        }
+        window.onload = checkPassword;
+
+        function handleNoteInputKeyPress(event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                addNote();
+            }
+        }
+
+        function addRow(date, time, text) {
+            const tbody = document.querySelector("#notesTable tbody");
+            const row = tbody.insertRow();
+            
+            // Editable date input
+            const dateCell = row.insertCell(0);
+            const dateInput = document.createElement("input");
+            dateInput.type = "date";
+            dateInput.value = date;
+            dateInput.oninput = saveNotes;
+            dateCell.appendChild(dateInput);
+
+            // Editable time input (HH:mm:ss format)
+            const timeCell = row.insertCell(1);
+            const timeInput = document.createElement("input");
+            timeInput.type = "time";
+            timeInput.step = 1; // Enable seconds
+            timeInput.value = time; // Ensure HH:mm:ss format
+            timeInput.oninput = saveNotes;
+            timeCell.appendChild(timeInput);
+
+            // Editable note input
+            const textCell = row.insertCell(2);
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = text;
+            input.oninput = saveNotes;
+            textCell.appendChild(input);
+
+            // Actions cell
+            const actionsCell = row.insertCell(3);
+            const delButton = document.createElement("button");
+            delButton.textContent = "Delete";
+            delButton.onclick = function () { confirmDelete(row); };
+            actionsCell.appendChild(delButton);
+        }
+
+        function saveNotes() {
+            const rows = document.querySelectorAll("#notesTable tbody tr");
+            const notes = Array.from(rows).map(row => ({
+                date: row.cells[0].querySelector("input").value,
+                time: row.cells[1].querySelector("input").value,
+                text: row.cells[2].querySelector("input").value
+            }));
+            localStorage.setItem("notes", JSON.stringify(notes));
+        }
+
+        function addNote() {
+            const text = document.getElementById("noteInput").value.trim();
+            const now = new Date();
+            const date = now.toISOString().split("T")[0];
+            const time = now.toTimeString().split(" ")[0]; // Use HH:mm:ss format
+            addRow(date, time, text);
+            saveNotes();
+            document.getElementById("noteInput").value = "";
+        }
+
+        function exportToCSV() {
+            const date = new Date().toISOString().split("T")[0];
+            const filename = `MME_Notes_${date}.csv`;
+            const notes = JSON.parse(localStorage.getItem("notes")) || [];
+            let csvContent = "Date,Time,Note\n";
+            notes.forEach(note => {
+                const sanitizedNote = note.text.replace(/,/g, " ");
+                csvContent += `${note.date},${note.time},${sanitizedNote}\n`;
+            });
+            const blob = new Blob([csvContent], { type: "text/csv" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function confirmDelete(row) {
+            if (confirm("Are you sure you want to delete this note?")) {
+                row.remove();
+                saveNotes();
+            }
+        }
+
+        function confirmDeleteAll() {
+            if (confirm("Are you sure you want to delete all notes?")) {
+                localStorage.removeItem("notes");
+                loadNotes();
+            }
+        }
+        
+        function loadNotes() {
+            const notes = JSON.parse(localStorage.getItem("notes")) || [];
+            const tbody = document.querySelector("#notesTable tbody");
+            tbody.innerHTML = "";
+            notes.forEach(note => addRow(note.date, note.time, note.text));
+        }
+        
+        window.onload = loadNotes;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <img src="logo.png" alt="Notes Logger Logo" style="width: 100%; max-width: 800px; margin-bottom: 20px;">
+        <h2>Notes Logger</h2>
+        <table id="notesTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody><tr><td>2025-02-26</td><td>21:51:08</td><td><input type="text"></td><td><button>Delete</button></td></tr><tr><td>2025-02-26</td><td>21:58:13</td><td><input type="text"></td><td><button>Delete</button></td></tr></tbody>
+        </table>
+    </div>
+    <div class="input-container">
+        <textarea id="noteInput" placeholder="Enter your note..." onkeypress="handleNoteInputKeyPress(event)"></textarea>
+        <div class="button-group">
+            <button onclick="addNote()">Add Note</button>
+            <button onclick="exportToCSV()">Export to CSV</button>
+            <button onclick="confirmDeleteAll()">Delete All</button>
+        </div>
+    </div>
+</body>
+</html>
